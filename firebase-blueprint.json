@@ -1,0 +1,82 @@
+{
+  "entities": {
+    "Trip": {
+      "title": "Trip",
+      "description": "A travel trip planned by a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the owner" },
+        "destination": { "type": "string", "description": "Trip destination" },
+        "startDate": { "type": "string", "format": "date", "description": "Start date" },
+        "endDate": { "type": "string", "format": "date", "description": "End date" },
+        "travelers": { "type": "integer", "description": "Number of travelers" },
+        "budget": { "type": "number", "description": "Total budget" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "destination", "startDate", "endDate", "travelers", "budget"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "An expense recorded for a trip",
+      "type": "object",
+      "properties": {
+        "tripId": { "type": "string", "description": "ID of the trip" },
+        "userId": { "type": "string", "description": "Owner UID" },
+        "category": { "type": "string", "enum": ["Flights", "Hotels", "Food", "Activities", "Transport", "Other"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date" }
+      },
+      "required": ["tripId", "userId", "category", "amount", "date"]
+    },
+    "Hotel": {
+      "title": "Hotel",
+      "description": "A hotel option or booking",
+      "type": "object",
+      "properties": {
+        "tripId": { "type": "string" },
+        "name": { "type": "string" },
+        "pricePerNight": { "type": "number" },
+        "rating": { "type": "number" },
+        "image": { "type": "string" },
+        "isBooked": { "type": "boolean" },
+        "userId": { "type": "string" }
+      },
+      "required": ["name", "pricePerNight", "userId"]
+    },
+    "ItineraryItem": {
+      "title": "Itinerary Item",
+      "description": "An activity in a trip itinerary",
+      "type": "object",
+      "properties": {
+        "tripId": { "type": "string" },
+        "userId": { "type": "string" },
+        "day": { "type": "integer" },
+        "time": { "type": "string" },
+        "activity": { "type": "string" },
+        "location": { "type": "string" },
+        "isAISuggested": { "type": "boolean" }
+      },
+      "required": ["tripId", "userId", "day", "activity"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A user of the application",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users": { "schema": "User", "description": "Collection of users" },
+    "trips": { "schema": "Trip", "description": "Collection of trips" },
+    "expenses": { "schema": "Expense", "description": "Collection of expenses" },
+    "hotels": { "schema": "Hotel", "description": "Collection of hotels" },
+    "itineraries": { "schema": "ItineraryItem", "description": "Collection of itinerary items" }
+  }
+}

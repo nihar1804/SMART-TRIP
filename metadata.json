@@ -1,0 +1,7 @@
+{
+  "name": "SmartTrip Planner",
+  "description": "An AI-powered travel planning website that helps you create itineraries, track budgets, book hotels, and manage your trips.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

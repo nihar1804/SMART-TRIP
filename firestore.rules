@@ -1,0 +1,164 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields:
+    //   - email: string (required)
+    //   - displayName: string (optional)
+    //   - role: string (required) - 'admin' | 'user'
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: trips
+    // Fields:
+    //   - userId: string (required) - Owner UID
+    //   - destination: string (required) - Destination name
+    //   - startDate: string (required) - ISO date
+    //   - endDate: string (required) - ISO date
+    //   - travelers: number (required) - Count
+    //   - budget: number (required) - Amount in INR
+    //   - createdAt: string (optional) - ISO date-time
+    //
+    // Collection: expenses
+    // Fields:
+    //   - tripId: string (required) - Parent trip ID
+    //   - userId: string (required) - Owner UID
+    //   - category: string (required) - Enum
+    //   - amount: number (required) - Amount in INR
+    //   - description: string (optional)
+    //   - date: string (required) - ISO date
+    //
+    // Collection: hotels
+    // Fields:
+    //   - tripId: string (required)
+    //   - userId: string (required)
+    //   - name: string (required)
+    //   - pricePerNight: number (required)
+    //   - rating: number (optional)
+    //   - image: string (optional)
+    //   - isBooked: bool (optional)
+    //
+    // Collection: itineraries
+    // Fields:
+    //   - tripId: string (required)
+    //   - userId: string (required)
+    //   - day: number (required)
+    //   - time: string (required)
+    //   - activity: string (required)
+    //   - location: string (optional)
+    //   - isAISuggested: bool (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.email == "dipendipen746@gmail.com" ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser(data) {
+      return hasRequiredFields(['email', 'role', 'createdAt']) &&
+             data.email is string &&
+             data.role in ['admin', 'user'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidTrip(data) {
+      return hasRequiredFields(['userId', 'destination', 'startDate', 'endDate', 'travelers', 'budget']) &&
+             data.userId == request.auth.uid &&
+             data.destination is string && data.destination.size() <= 100 &&
+             data.travelers is number && data.travelers > 0 &&
+             data.budget is number && data.budget >= 0;
+    }
+
+    function isValidExpense(data) {
+      return hasRequiredFields(['tripId', 'userId', 'category', 'amount', 'date']) &&
+             data.userId == request.auth.uid &&
+             data.category in ['Flights', 'Hotels', 'Food', 'Activities', 'Transport', 'Other'] &&
+             data.amount is number && data.amount >= 0;
+    }
+
+    function isValidHotel(data) {
+      return hasRequiredFields(['tripId', 'userId', 'name', 'pricePerNight']) &&
+             data.userId == request.auth.uid &&
+             data.name is string && data.name.size() <= 200 &&
+             data.pricePerNight is number && data.pricePerNight >= 0;
+    }
+
+    function isValidItinerary(data) {
+      return hasRequiredFields(['tripId', 'userId', 'day', 'time', 'activity']) &&
+             data.userId == request.auth.uid &&
+             data.day is number && data.day > 0 &&
+             data.activity is string && data.activity.size() <= 500;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
+      allow update: if (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data) && (isAdmin() || request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
+    }
+
+    match /trips/{tripId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidTrip(request.resource.data);
+      allow update: if (isDocOwner() || isAdmin()) && isValidTrip(request.resource.data);
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /expenses/{expenseId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidExpense(request.resource.data);
+      allow update: if (isDocOwner() || isAdmin()) && isValidExpense(request.resource.data);
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /hotels/{hotelId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidHotel(request.resource.data);
+      allow update: if (isDocOwner() || isAdmin()) && isValidHotel(request.resource.data);
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /itineraries/{itineraryId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidItinerary(request.resource.data);
+      allow update: if (isDocOwner() || isAdmin()) && isValidItinerary(request.resource.data);
+      allow delete: if isDocOwner() || isAdmin();
+    }
+  }
+}
