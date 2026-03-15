@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../lib/firebase';
 import { 
-  onAuthStateChanged, 
   signInWithPopup, 
   GoogleAuthProvider, 
   signInWithEmailAndPassword, 
@@ -11,6 +10,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Plane, Mail, Lock, User, X, Loader2, ArrowLeft } from 'lucide-react';
+import { handleFirestoreError, OperationType } from '../lib/firebase';
 
 interface AuthProps {
   onUserChange: (user: any) => void;
@@ -73,13 +73,18 @@ const Auth: React.FC<AuthProps> = ({ onUserChange }) => {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName });
         
-        // Create user document immediately for signup
-        await setDoc(doc(db, 'users', userCredential.user.uid), {
-          email: userCredential.user.email,
-          displayName: displayName,
-          role: 'user',
-          createdAt: serverTimestamp()
-        });
+        try {
+          // Create user document immediately for signup
+          await setDoc(doc(db, 'users', userCredential.user.uid), {
+            email: userCredential.user.email,
+            displayName: displayName,
+            role: 'user',
+            createdAt: serverTimestamp()
+          });
+        } catch (err) {
+          console.error("Error creating user doc:", err);
+          // Don't block signup if firestore sync fails, but log it
+        }
 
         onUserChange({ ...userCredential.user, displayName });
         setIsModalOpen(false);
